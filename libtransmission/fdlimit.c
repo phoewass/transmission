@@ -124,7 +124,8 @@ struct tr_cached_file
     bool is_writable;
     tr_sys_file_t fd;
     int torrent_id;
-    tr_file_index_t file_index;
+    uint32_t index_num;
+    tr_fd_index_type index_type;
     time_t used_at;
 };
 
@@ -265,7 +266,7 @@ struct tr_fileset
 
 static void fileset_construct(struct tr_fileset* set, int n)
 {
-    struct tr_cached_file const TR_CACHED_FILE_INIT = { false, TR_BAD_SYS_FILE, 0, 0, 0 };
+    struct tr_cached_file const TR_CACHED_FILE_INIT = { false, TR_BAD_SYS_FILE, 0, 0, TR_FD_INDEX_FILE, 0 };
 
     set->begin = tr_new(struct tr_cached_file, n);
     set->end = set->begin + n;
@@ -311,13 +312,13 @@ static void fileset_close_torrent(struct tr_fileset* set, int torrent_id)
     }
 }
 
-static struct tr_cached_file* fileset_lookup(struct tr_fileset* set, int torrent_id, tr_file_index_t i)
+static struct tr_cached_file* fileset_lookup(struct tr_fileset* set, int torrent_id, uint32_t i, tr_fd_index_type it)
 {
     if (set != NULL)
     {
         for (struct tr_cached_file* o = set->begin; o != set->end; ++o)
         {
-            if (torrent_id == o->torrent_id && i == o->file_index && cached_file_is_open(o))
+            if (torrent_id == o->torrent_id && i == o->index_num && it == o->index_type && cached_file_is_open(o))
             {
                 return o;
             }
@@ -432,11 +433,11 @@ static struct tr_fileset* get_fileset(tr_session* session)
     return &session->fdInfo->fileset;
 }
 
-void tr_fdFileClose(tr_session* s, tr_torrent const* tor, tr_file_index_t i)
+void tr_fdFileClose(tr_session* s, tr_torrent const* tor, uint32_t i, tr_fd_index_type it)
 {
     struct tr_cached_file* o;
 
-    if ((o = fileset_lookup(get_fileset(s), tr_torrentId(tor), i)) != NULL)
+    if ((o = fileset_lookup(get_fileset(s), tr_torrentId(tor), i, it)) != NULL)
     {
         /* flush writable files so that their mtimes will be
          * up-to-date when this function returns to the caller... */
@@ -449,9 +450,9 @@ void tr_fdFileClose(tr_session* s, tr_torrent const* tor, tr_file_index_t i)
     }
 }
 
-tr_sys_file_t tr_fdFileGetCached(tr_session* s, int torrent_id, tr_file_index_t i, bool writable)
+tr_sys_file_t tr_fdFileGetCached(tr_session* s, int torrent_id, uint32_t i, tr_fd_index_type it, bool writable)
 {
-    struct tr_cached_file* o = fileset_lookup(get_fileset(s), torrent_id, i);
+    struct tr_cached_file* o = fileset_lookup(get_fileset(s), torrent_id, i, it);
 
     if (o == NULL || (writable && !o->is_writable))
     {
@@ -462,11 +463,11 @@ tr_sys_file_t tr_fdFileGetCached(tr_session* s, int torrent_id, tr_file_index_t 
     return o->fd;
 }
 
-bool tr_fdFileGetCachedMTime(tr_session* s, int torrent_id, tr_file_index_t i, time_t* mtime)
+bool tr_fdFileGetCachedMTime(tr_session* s, int torrent_id, uint32_t i, tr_fd_index_type it, time_t* mtime)
 {
     bool success;
     tr_sys_path_info info;
-    struct tr_cached_file* o = fileset_lookup(get_fileset(s), torrent_id, i);
+    struct tr_cached_file* o = fileset_lookup(get_fileset(s), torrent_id, i, it);
 
     if ((success = o != NULL && tr_sys_file_get_info(o->fd, &info, NULL)))
     {
@@ -484,11 +485,11 @@ void tr_fdTorrentClose(tr_session* session, int torrent_id)
 }
 
 /* returns an fd on success, or a TR_BAD_SYS_FILE on failure and sets errno */
-tr_sys_file_t tr_fdFileCheckout(tr_session* session, int torrent_id, tr_file_index_t i, char const* filename, bool writable,
-    tr_preallocation_mode allocation, uint64_t file_size)
+tr_sys_file_t tr_fdFileCheckout(tr_session* session, int torrent_id, uint32_t i, tr_fd_index_type it, char const* filename,
+    bool writable, tr_preallocation_mode allocation, uint64_t file_size)
 {
     struct tr_fileset* set = get_fileset(session);
-    struct tr_cached_file* o = fileset_lookup(set, torrent_id, i);
+    struct tr_cached_file* o = fileset_lookup(set, torrent_id, i, it);
 
     if (o != NULL && writable && !o->is_writable)
     {
@@ -515,7 +516,8 @@ tr_sys_file_t tr_fdFileCheckout(tr_session* session, int torrent_id, tr_file_ind
 
     dbgmsg("checking out '%s'", filename);
     o->torrent_id = torrent_id;
-    o->file_index = i;
+    o->index_num = i;
+    o->index_type = it;
     o->used_at = tr_time();
     return o->fd;
 }
