@@ -219,6 +219,7 @@ struct tr_torrent
     bool infoDictOffsetIsCached;
 
     uint16_t maxConnectedPeers;
+    unsigned int next_webseed_i;
 
     tr_verify_state verifyState;
 
