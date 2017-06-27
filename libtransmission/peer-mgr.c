@@ -3398,7 +3398,8 @@ static bool shouldPeerBeClosed(tr_swarm const* s, tr_peer const* peer, int peerC
     }
 
     /* disconnect if we're both seeds and enough time has passed for PEX */
-    if (tr_torrentIsSeed(tor) && tr_peerIsSeed(peer))
+    ///TODO ass seed always toggle
+    if (tr_torrentIsSeed(tor) && tr_peerIsSeed(peer) && false)
     {
         return !tr_torrentAllowsPex(tor) || now - atom->time >= 30;
     }

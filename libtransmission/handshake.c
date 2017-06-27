@@ -844,7 +844,8 @@ static ReadState readCryptoProvide(tr_handshake* handshake, struct evbuffer* inb
         dbgmsg(handshake, "got INCOMING connection's encrypted handshake for torrent [%s]", tr_torrentName(tor));
         tr_peerIoSetTorrentHash(handshake->io, tor->info.hash);
 
-        if (clientIsSeed && peerIsSeed)
+        ///TODO add seed always toggle
+        if (clientIsSeed && peerIsSeed && false)
         {
             dbgmsg(handshake, "another seed tried to reconnect to us!");
             return tr_handshakeDone(handshake, false);
