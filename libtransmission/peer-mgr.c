@@ -2690,8 +2690,8 @@ bool tr_peerIsSeed(tr_peer const* peer)
     {
         return true;
     }
-
-    if (peer->atom != NULL && atomIsSeed(peer->atom))
+    //TODO add seed always toggle
+    if (peer->atom != NULL && atomIsSeed(peer->atom) && false)
     {
         return true;
     }
